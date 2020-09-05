@@ -136,9 +136,6 @@ def RunInstances(R, args):
     shutil.rmtree("./log/") if os.path.exists("./log/") else None; os.mkdir("./log/")
     shutil.rmtree("./ckpt/") if os.path.exists("./ckpt/") else None; os.mkdir("./ckpt/")
     handles = []; preds = [[[], [], []] for _ in range(len(R)+1)]; M = [[[], [], []] for _ in range(len(R)+1)]; Preprocess(args.syn_type,0,0,0,graph_only=True).wait()
-    ### Operation Inserted Here
-    
-    ###
     for iteration in range(ITERATIONS):
         for h,p in enumerate(R,1):
             handles.append(Preprocess(args.syn_type,p=p,h=h%GPU,s=np.random.randint(1000000000),feat_gen=args.feat_gen))
