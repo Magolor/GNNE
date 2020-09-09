@@ -557,11 +557,16 @@ class Explainer:
 
     def make_pred_real(self, adj, start, old, syntype):
         _,shape=syntype.split('-')
-        shape_size={"grid":9,"cycle":6,"house":5}
+        shape_size={"grid":9,"cycle":6,"house":5,"diamond":6,"clique":6}
         # print(start, old, shape_size[shape], len(adj))
         start = start - (old-1023%shape_size[shape])%shape_size[shape]
 
-        shape_adj={"grid":[[0,1],[1,2],[0,3],[1,4],[2,5],[3,4],[4,5],[3,6],[4,7],[5,8],[6,7],[7,8]],"cycle":[[0,1],[1,2],[2,3],[3,4],[4,5],[0,5]],"house":[[0,1],[1,2],[2,3],[0,3],[0,4],[3,4]]}
+        shape_adj={
+            "grid":[[0,1],[1,2],[0,3],[1,4],[2,5],[3,4],[4,5],[3,6],[4,7],[5,8],[6,7],[7,8]],
+            "cycle":[[0,1],[1,2],[2,3],[3,4],[4,5],[0,5]],
+            "house":[[0,1],[1,2],[2,3],[0,3],[0,4],[1,4]],
+            "clique":[[0,1],[0,2],[0,3],[0,4],[0,5],[1,2],[1,3],[1,4],[1,5],[2,3],[2,4],[2,5],[3,4],[3,5],[4,5]],
+            "diamond":[[0,1],[1,2],[2,3],[0,3],[0,4],[1,4],[2,4],[3,4],[0,5],[1,5],[2,5],[3,5]]}
 
         pred = adj[np.triu(adj) > 0]
         real = adj.copy()

@@ -23,7 +23,7 @@ LOAD = 3
 # ITERATIONS = 6
 ITERATIONS = 10
 
-# RANGE = [0.00,0.20,0.40,0.60,0.80,1.00]
+#RANGE = [0.00,0.20,0.40,0.60,0.80,1.00]
 RANGE = [0.00,0.05,0.10,0.15,0.20,0.25,0.30,0.35,0.40,0.45,0.50,0.55,0.60,0.65,0.70,0.75,0.80,0.85,0.90,0.95,1.00]
 # RANGE = [0.00,0.10,0.20,0.30,0.40,0.50,0.60,0.70,0.80,0.90,1.00,1.25,1.50,1.75,2.00,2.25,2.50,2.75,3.00,3.50,4.00,4.50,5.00,6.00]
 
@@ -99,7 +99,9 @@ def StatisticsGNN(predictions):
     std_result  = {key:float(np.std([r[key] for r in result]) if result else 0.0) for key in ['ACC','PRE','REC']}
     return mean_result, std_result
 
-def Report(R, args):
+def Report(R, nd, args):
+    if not os.path.exists("./report/{0}/".format(args.syn_type)):
+        os.mkdir("./report/{0}/".format(args.syn_type))
     GNNR = [[],[],[]]; GNN = [[{key:[] for key in ['ACC','PRE','REC']} for _ in range(2)] for _ in range(3)]
     GNNER = [[],[],[]]; GNNE = [[{key:[] for key in ['AUROC','TOPACC','TOPTHRES','0.7ACC','0.8ACC','0.9ACC']} for _ in range(2)] for _ in range(3)]
     for h,p in enumerate(R,1):
@@ -124,42 +126,42 @@ def Report(R, args):
                     GNNER[i].append(p)
     for i in [0,1,2]:
         for key in ['ACC','PRE','REC']:
-            None if i==1 and key=='PRE' else DrawCurve("GNN-{1}-f={0}".format(i,key),GNNR[i],GNN[i][0][key],GNN[i][1][key])
+            None if i==1 and key=='PRE' else DrawCurve("{0}/GNN-{2}-f={1}-{3}".format(args.syn_type,i,key,nd),GNNR[i],GNN[i][0][key],GNN[i][1][key])
         if not args.gnn_only:
             for key in ['AUROC','TOPACC','TOPTHRES','0.7ACC','0.8ACC','0.9ACC']:
-                DrawCurve("GNNE-{1}-f={0}".format(i,key),GNNER[i],GNNE[i][0][key],GNNE[i][1][key])
+                DrawCurve("{0}/GNNE-{2}-f={1}-{3}".format(args.syn_type,i,key,nd),GNNER[i],GNNE[i][0][key],GNNE[i][1][key])
 
-def RunInstances(R, args):
+def RunInstances(R, node_lists, args):
     start_time = time.time()
     print("Start:",time.strftime("%Y-%m-%d %H:%M:%S ",time.localtime(start_time)))
     shutil.rmtree("./workspace/") if os.path.exists("./workspace/") else None; os.mkdir("./workspace/")
     shutil.rmtree("./log/") if os.path.exists("./log/") else None; os.mkdir("./log/")
     shutil.rmtree("./ckpt/") if os.path.exists("./ckpt/") else None; os.mkdir("./ckpt/")
     handles = []; preds = [[[], [], []] for _ in range(len(R)+1)]; M = [[[], [], []] for _ in range(len(R)+1)]; Preprocess(args.syn_type,0,0,0,graph_only=True).wait()
-    for iteration in range(ITERATIONS):
-        for h,p in enumerate(R,1):
-            handles.append(Preprocess(args.syn_type,p=p,h=h%GPU,s=np.random.randint(1000000000),feat_gen=args.feat_gen))
-            if h%(LOAD*GPU)==0 or h==len(R):
-                _, handles = [handle.wait() for handle in handles], []
-        for h,p in enumerate(R,1):
-            result = [torch.load("./workspace/GNN-p={:.2f}-f={:d}-performance.tmp".format(p,i)) for i in range(3)]
-            for i in range(3):
-                M[h][i].append(result[i])
-                torch.save(StatisticsGNN(M[h][i]),"./workspace/GNN-p={:.2f}-f={:d}-performance.pkl".format(p,i))
-
-        if not args.gnn_only:
+    for nd,node_list in enumerate(node_lists,1):
+        for iteration in range(ITERATIONS):
             for h,p in enumerate(R,1):
-                handles.append(ExplainInstance(args.syn_type,p,[v for v in range(1023,1023+720)],h%GPU))
+                handles.append(Preprocess(args.syn_type,p=p,h=h%GPU,s=np.random.randint(1000000000),feat_gen=args.feat_gen))
                 if h%(LOAD*GPU)==0 or h==len(R):
                     _, handles = [handle.wait() for handle in handles], []
             for h,p in enumerate(R,1):
-                result = GetPredictions(p)
+                result = [torch.load("./workspace/GNN-p={:.2f}-f={:d}-performance.tmp".format(p,i)) for i in range(3)]
                 for i in range(3):
-                    preds[h][i].append(result[i])
-                    torch.save(StatisticsGNNE(preds[h][i]),"./workspace/GNNE-p={:.2f}-f={:d}-performance.pkl".format(p,i))
-        
-        Report(R,args)
-        print("Iteration {0}/{1} Finished:".format(iteration+1,ITERATIONS),time.strftime("%Y-%m-%d %H:%M:%S ",time.localtime(time.time())))
+                    M[h][i].append(result[i])
+                    torch.save(StatisticsGNN(M[h][i]),"./workspace/GNN-p={:.2f}-f={:d}-performance.pkl".format(p,i))
+
+            if not args.gnn_only:
+                for h,p in enumerate(R,1):
+                    handles.append(ExplainInstance(args.syn_type,p,node_list,h%GPU))
+                    if h%(LOAD*GPU)==0 or h==len(R):
+                        _, handles = [handle.wait() for handle in handles], []
+                for h,p in enumerate(R,1):
+                    result = GetPredictions(p)
+                    for i in range(3):
+                        preds[h][i].append(result[i])
+                        torch.save(StatisticsGNNE(preds[h][i]),"./workspace/GNNE-p={:.2f}-f={:d}-performance.pkl".format(p,i))
+            Report(R,nd,args)
+            print("[{2}/{3}] Iteration {0}/{1} Finished:".format(iteration+1,ITERATIONS,nd,len(node_lists)),time.strftime("%Y-%m-%d %H:%M:%S ",time.localtime(time.time())))
 
     os.remove("./workspace/graph.pkl")
     os.remove("./workspace/struct_nodes.pkl")
@@ -175,17 +177,24 @@ def RunInstances(R, args):
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--report-only', dest='report_only', action='store_const', const=True, default=False,
-                        help='If statistics already exists, use \'--report-only\' to generate report based on existing data instead of re-running.')
     parser.add_argument('--gnn-only', dest='gnn_only', action='store_const', const=True, default=False,
-                        help='Use \'--gnn-only\; to run GNN but not GNNE.')
+                        help='Use \'--gnn-only\' to run GNN but not GNNE.')
     parser.add_argument('--syn-type', dest='syn_type', default='tree-cycle', type=str,
-                        help="Options:'tree-cycle', 'tree-grid', 'tree-house', 'ba-cycle', 'ba-grid', 'ba-house'")
+                        help="Options:'tree-cycle', 'tree-grid', 'tree-house', 'tree-diamond', 'tree-clique', 'ba-cycle', 'ba-grid', 'ba-house', 'ba-diamond', 'ba-clique'")
     parser.add_argument('--feat-gen', dest='feat_gen', default='Binomial', type=str,
-                        help="Options:'tree-cycle', 'tree-grid', 'tree-house', 'ba-cycle', 'ba-grid', 'ba-grid'")
+                        help="Options:'Binomial', 'Correlated', 'CorrelatedXOR', 'Const', 'Indenpendent'.")
     args = parser.parse_args()
-    shutil.rmtree("./report/") if os.path.exists("./report/") else None; os.mkdir("./report/")
-    if args.report_only:
-        Report(RANGE,args)
+    #shutil.rmtree("./report/") if os.path.exists("./report/") else None; os.mkdir("./report/")
+    
+    shape = args.syn_type.split('-')[1]
+    if shape == 'house':
+        node_lists = [[v for v in range(1023,1023+720,5)]+[v for v in range(1024,1023+720,5)],
+                      [v for v in range(1025,1023+720,5)]+[v for v in range(1026,1023+720,5)],
+                      [v for v in range(1027,1023+720,5)]]
+    elif shape == 'grid':
+        node_lists = [[v for v in range(1024,1023+720,9)]+[v for v in range(1026,1023+720,9)]+[v for v in range(1028,1023+720,9)]+[v for v in range(1030,1023+720,9)]
+                      [v for v in range(1023,1023+720,9)]+[v for v in range(1025,1023+720,9)]+[v for v in range(1031,1023+720,9)]+[v for v in range(1029,1023+720,9)],
+                      [v for v in range(1027,1023+720,5)]]
     else:
-        RunInstances(RANGE,args)
+        node_lists = [[v for v in range(1023,1023+720)]]
+    RunInstances(RANGE,node_lists,args)

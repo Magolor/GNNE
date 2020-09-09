@@ -536,14 +536,14 @@ def syn_task(args, writer=None):
             width_basis = 9
         elif basis_type=='ba':
             width_basis = 1023
-        if shape_type=='cycle':
+        if shape_type in ['cycle','diamond','clique']:
             nb_shapes = 120
         elif shape_type=='grid':
             nb_shapes = 80
         elif shape_type=='house':
             nb_shapes = 144
         G, labels, name = gengraph.gen_syn(basis_type, shape_type, width_basis, nb_shapes, 5)
-    num_classes = max(labels) + 1
+    labels = [labels[i]>0 for i in range(len(labels))]; num_classes = max(labels) + 1
     torch.save([labels[i]>0 for i in range(len(labels))],"./workspace/struct_nodes.pkl")
     
     if args.graph_only:
@@ -553,7 +553,7 @@ def syn_task(args, writer=None):
         plt.savefig("./workspace/graph.png"); plt.close()
         exit(0)
     if args.feat_gen in ['Binomial','Correlated','CorrelatedXOR','Independent']:
-        if args.feat_gen in ['Binomial']:
+        if args.feat_gen in ['Binomial','Independent']:
             feature_generator = featgen.BinomialFeatureGen(len(labels),args.p,args.seed)
         elif args.feat_gen in ['Correlated','CorrelatedXOR']:
             struct = [j for j in range(len(labels)) if labels[j]>0]
@@ -572,11 +572,6 @@ def syn_task(args, writer=None):
         feature_generator.gen_node_features(G)
         torch.save([i for i in range(len(labels))],"./workspace/feat_nodes_p={:.2f}.pkl".format(args.p))
         torch.save([labels[i]>0 for i in range(len(labels))],"./workspace/labeled_nodes_p={:.2f}.pkl".format(args.p))
-
-    ### Insert Code Here
-
-
-    ###
 
     if args.method == "attn":
         # print("Method: attn")

@@ -1,1 +1,1 @@
-python -m batchrun --syn-type="tree-cycle" --feat-gen="Binomial"
+python -m batchrun --syn-type="tree-grid" --feat-gen="Binomial"

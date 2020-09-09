@@ -111,6 +111,10 @@ def gen_syn(basis_type, shape_type, width_basis, nb_shapes, d):
         list_shapes = [["house"]] * nb_shapes
     elif shape_type=='grid':
         list_shapes = [["grid", 3]] * nb_shapes
+    elif shape_type=='diamond':
+        list_shapes = [["diamond"]] * nb_shapes
+    elif shape_type=='clique':
+        list_shapes = [['clique', 6]] * nb_shapes
     G, role_id, plugins = synthetic_structsim.build_graph(
         width_basis, basis_type, list_shapes, start=0, m=d
     )
